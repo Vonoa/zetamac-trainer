@@ -462,27 +462,33 @@ def mode_typing_floor(cfg: dict) -> None:
 def mode_progress(cfg: dict) -> None:
     stats = load_stats()
     sessions = stats.get("sessions", [])
-    if not sessions:
+    have_quant = stats.get("prob_sessions") or stats.get("fermi_sessions")
+    if not sessions and not have_quant:
         print("\nNo saved sessions yet.")
         return
 
     print("\n" + "=" * 72)
     print("  PROGRESS")
     print("=" * 72)
-    print(f"  {'date':<20}{'mode':<16}{'score':>6}{'acc%':>7}"
-          f"{'add':>6}{'sub':>6}{'mul':>6}{'div':>6}   (avg s/problem)")
-    print("  " + "-" * 70)
-    for s in sessions[-15:]:
-        po = s.get("per_op", {})
 
-        def cell(op):
-            v = po.get(op, {}).get("avg_total")
-            return f"{v:>6.1f}" if isinstance(v, (int, float)) else f"{'-':>6}"
+    if not sessions:
+        print("  (no arithmetic sessions yet)")
 
-        print(f"  {s['timestamp'][:19]:<20}{s['mode'][:15]:<16}"
-              f"{s['score']:>6}{s['accuracy']:>7.1f}"
-              f"{cell('addition')}{cell('subtraction')}"
-              f"{cell('multiplication')}{cell('division')}")
+    if sessions:
+        print(f"  {'date':<20}{'mode':<16}{'score':>6}{'acc%':>7}"
+              f"{'add':>6}{'sub':>6}{'mul':>6}{'div':>6}   (avg s/problem)")
+        print("  " + "-" * 70)
+        for s in sessions[-15:]:
+            po = s.get("per_op", {})
+
+            def cell(op):
+                v = po.get(op, {}).get("avg_total")
+                return f"{v:>6.1f}" if isinstance(v, (int, float)) else f"{'-':>6}"
+
+            print(f"  {s['timestamp'][:19]:<20}{s['mode'][:15]:<16}"
+                  f"{s['score']:>6}{s['accuracy']:>7.1f}"
+                  f"{cell('addition')}{cell('subtraction')}"
+                  f"{cell('multiplication')}{cell('division')}")
 
     classic = [s for s in sessions if s["mode"] == "classic"]
     if classic:
@@ -493,7 +499,7 @@ def mode_progress(cfg: dict) -> None:
         print(f"  Classic last {len(recent)}: "
               f"{', '.join(str(s['score']) for s in recent)}")
 
-    es = expected_score(cfg, stats)
+    es = expected_score(cfg, stats) if sessions else None
     if es:
         tf = stats.get("typing_floor", {})
         print()
@@ -525,7 +531,35 @@ def mode_progress(cfg: dict) -> None:
                   f"slow {e.get('slow', 0)}, next due @{e.get('due', 0)}")
 
     _print_lifetime_patterns(stats)
+    _print_quant_summary(stats)
     print("=" * 72)
+
+
+def _print_quant_summary(stats: dict) -> None:
+    prob_sessions = stats.get("prob_sessions", [])
+    fermi_sessions = stats.get("fermi_sessions", [])
+    if not prob_sessions and not fermi_sessions:
+        return
+    print("\n  Quant interview prep:")
+    if prob_sessions:
+        recent = prob_sessions[-5:]
+        avg_acc = mean(s["accuracy"] for s in recent)
+        print(f"    Probability & EV: {len(prob_sessions)} session(s), "
+              f"last {len(recent)} avg accuracy {avg_acc:.0f}%")
+        pats = stats.get("prob_patterns", {})
+        weak = sorted(
+            ((t, p) for t, p in pats.items() if p["seen"] >= 4),
+            key=lambda kv: kv[1]["correct"] / kv[1]["seen"],
+        )
+        for tag, p in weak[:4]:
+            print(f"      {tag:<16} acc {100 * p['correct'] / p['seen']:>3.0f}%  "
+                  f"(n={p['seen']})")
+    if fermi_sessions:
+        recent = fermi_sessions[-5:]
+        diffs = [s["avg_log_diff"] for s in recent if s.get("avg_log_diff") is not None]
+        print(f"    Fermi / estimation: {len(fermi_sessions)} session(s)"
+              + (f", last {len(recent)} avg log10 distance {mean(diffs):.2f}"
+                 if diffs else ""))
 
 
 def _print_lifetime_patterns(stats: dict) -> None:
@@ -558,6 +592,10 @@ def mode_settings(cfg: dict) -> None:
         print(f"  y) Typing-floor drill          "
               f"{cfg['typing']['rounds']} rounds, {cfg['typing']['digits']} digits")
         print(f"  g) Targeted patterns per run   {cfg.get('targeted_count', 3)}")
+        q = cfg["quant"]
+        print(f"  q) Probability & EV duration   {q['prob_duration']}s")
+        print(f"  f) Fermi questions / timer     {q['fermi_count']} questions, "
+              f"{q['fermi_timer'] or 'untimed'}")
         print("  s) save    r) reset to defaults    b) back")
         c = input("> ").strip().lower()
 
@@ -599,6 +637,14 @@ def mode_settings(cfg: dict) -> None:
         elif c == "g":
             cfg["targeted_count"] = ask_int("patterns per targeted run",
                                             cfg.get("targeted_count", 3))
+        elif c == "q":
+            cfg["quant"]["prob_duration"] = ask_int(
+                "Probability & EV duration seconds", cfg["quant"]["prob_duration"])
+        elif c == "f":
+            cfg["quant"]["fermi_count"] = ask_int(
+                "Fermi questions per session", cfg["quant"]["fermi_count"])
+            cfg["quant"]["fermi_timer"] = ask_int(
+                "seconds per guess (0 = untimed)", cfg["quant"]["fermi_timer"])
         elif c == "s":
             save_config(cfg)
         elif c == "r":

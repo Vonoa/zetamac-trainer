@@ -31,6 +31,11 @@ DEFAULT_CONFIG = {
     "sprint": {"count": 6, "length": 20},
     "targeted_count": 3,   # how many weak patterns the targeted drill picks by default
     "target_score": 0,     # 0 = no live pace target
+    "quant": {
+        "prob_duration": 240,  # Probability & EV drill length, seconds
+        "fermi_count": 8,      # Fermi questions per session
+        "fermi_timer": 0,      # seconds per Fermi guess; 0 = generous/untimed (600s)
+    },
 }
 
 # A tracked weak combo is retired once it has survived this many review units

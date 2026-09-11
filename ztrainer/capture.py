@@ -105,6 +105,79 @@ def prompt_int(label: str, correct: int, timeout: float = 90.0):
     return k, time.monotonic() - start
 
 
+def read_free(deadline: float, allowed: str = ".+-/%") -> Key:
+    """Character capture with NO auto-submit - for fraction/decimal/percent/
+    magnitude answers (probability, EV, Fermi). Enter submits, Esc stops."""
+    buf: list = []
+    first = None
+
+    while True:
+        if time.monotonic() >= deadline:
+            return Key("".join(buf), first, time.monotonic(), "timeout")
+
+        if not msvcrt.kbhit():
+            time.sleep(0.004)
+            continue
+
+        ch = msvcrt.getwch()
+        now = time.monotonic()
+
+        if ch in ("\x00", "\xe0"):  # function / arrow key
+            msvcrt.getwch()
+            continue
+        if ch == "\x03":  # Ctrl-C
+            raise KeyboardInterrupt
+        if ch == "\x1b":  # Esc
+            return Key("".join(buf), first, now, "esc")
+        if ch in ("\r", "\n"):
+            if not buf:
+                return Key("", first, now, "skip")
+            return Key("".join(buf), first, now, "enter")
+        if ch in ("\x08", "\x7f"):  # backspace
+            if buf:
+                buf.pop()
+                sys.stdout.write("\b \b")
+                sys.stdout.flush()
+            continue
+        if ch.isdigit() or ch in allowed:
+            if first is None:
+                first = now
+            buf.append(ch)
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+            continue
+        # anything else: ignore
+
+
+def read_free_linemode(deadline: float, allowed: str = "") -> Key:
+    """Fallback for non-Windows terminals: line input."""
+    if deadline - time.monotonic() <= 0:
+        return Key("", None, time.monotonic(), "timeout")
+    try:
+        raw = input().strip()
+    except EOFError:
+        return Key("", None, time.monotonic(), "esc")
+    now = time.monotonic()
+    if raw == "":
+        return Key("", None, now, "skip")
+    if raw.lower() in ("q", "quit", "esc"):
+        return Key("", None, now, "esc")
+    return Key(raw, None, now, "enter")
+
+
+CAPTURE_FREE = read_free if IS_WINDOWS else read_free_linemode
+
+
+def prompt_free(label: str, timeout: float = 60.0, allowed: str = ".+-/%"):
+    """Ask a free-form fraction/decimal/percent/magnitude answer inline."""
+    sys.stdout.write(label)
+    sys.stdout.flush()
+    start = time.monotonic()
+    k = CAPTURE_FREE(start + timeout, allowed)
+    sys.stdout.write("\n")
+    return k, time.monotonic() - start
+
+
 def ask_int(label: str, default: int) -> int:
     raw = input(f"{label} [{default}]: ").strip()
     if not raw:

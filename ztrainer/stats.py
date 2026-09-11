@@ -36,6 +36,10 @@ def load_stats() -> dict:
     data.setdefault("patterns", {})
     data.setdefault("review_counter", 0)
     data.setdefault("graduated_total", 0)
+    data.setdefault("prob_sessions", [])
+    data.setdefault("prob_patterns", {})
+    data.setdefault("fermi_sessions", [])
+    data.setdefault("fermi_patterns", {})
     return data
 
 
@@ -117,6 +121,51 @@ def record_session(mode: str, summary: dict, attempts, sprint_scores=None) -> No
     if graduated:
         print(f"  retired {len(graduated)} weak combo(s) as fixed: "
               + ", ".join(graduated[:6]) + ("..." if len(graduated) > 6 else ""))
+
+
+def record_prob_session(results: list) -> dict:
+    """results: [{tag, ok, total}, ...] from one Probability & EV session."""
+    stats = load_stats()
+    n = len(results)
+    score = sum(1 for r in results if r["ok"])
+    stats["prob_sessions"].append({
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "score": score, "attempted": n,
+        "accuracy": round(100 * score / n, 1) if n else 0.0,
+    })
+    pats = stats["prob_patterns"]
+    for r in results:
+        p = pats.setdefault(r["tag"], {"seen": 0, "correct": 0, "t_sum": 0.0, "t_n": 0})
+        p["seen"] += 1
+        p["correct"] += int(r["ok"])
+        if r.get("total") is not None:
+            p["t_sum"] += r["total"]
+            p["t_n"] += 1
+    save_stats(stats)
+    return {"score": score, "attempted": n}
+
+
+def record_fermi_session(results: list) -> dict:
+    """results: [{tag, tier, diff, total}, ...] from one Fermi session."""
+    stats = load_stats()
+    n = len(results)
+    good = sum(1 for r in results if r["tier"] in ("excellent", "good"))
+    diffs = [r["diff"] for r in results if r.get("diff") is not None]
+    stats["fermi_sessions"].append({
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "attempted": n, "good_or_better": good,
+        "avg_log_diff": round(sum(diffs) / len(diffs), 3) if diffs else None,
+    })
+    pats = stats["fermi_patterns"]
+    for r in results:
+        p = pats.setdefault(r["tag"], {"seen": 0, "good": 0, "diff_sum": 0.0, "diff_n": 0})
+        p["seen"] += 1
+        p["good"] += int(r["tier"] in ("excellent", "good"))
+        if r.get("diff") is not None:
+            p["diff_sum"] += r["diff"]
+            p["diff_n"] += 1
+    save_stats(stats)
+    return {"attempted": n, "good_or_better": good}
 
 
 def expected_score(cfg: dict, stats: dict):

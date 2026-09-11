@@ -12,8 +12,10 @@
   8  Typing floor       pure numpad speed -> unlocks the expected-score model
   9  Weak-spot review   spaced repetition over combos you miss / stall on
  10  Targeted practice  drill the number patterns your stats.json flags as weak
- 11  Progress report    trends, expected score, worst number patterns
- 12  Settings           duration, ranges, drill sizes, pace target
+ 11  Probability & EV   quant-interview probability / expected-value drill
+ 12  Fermi / estimation guesstimate bank, graded by order of magnitude
+ 13  Progress report    trends, expected score, worst number patterns
+ 14  Settings           duration, ranges, drill sizes, pace target
 
 Stdlib only. Windows gets character capture (auto-submit + think/type split);
 other platforms fall back to line input (total time only).
@@ -27,6 +29,7 @@ from .modes import (
     mode_rapid, mode_reverse, mode_settings, mode_single, mode_sprint,
     mode_targeted, mode_typing_floor, mode_weak_review,
 )
+from .quant_modes import mode_fermi, mode_quant_prob
 from .terminal import clear_screen
 
 MENU = """
@@ -41,8 +44,12 @@ MENU = """
    8) Typing floor       pure entry speed -> unlocks expected score
    9) Weak-spot review   spaced repetition over what you miss / stall on
   10) Targeted practice  drill your data-flagged weak number patterns
-  11) Progress report    trends, expected score, worst number patterns
-  12) Settings
+     --- quant interview prep ---
+  11) Probability & EV   dice / cards / EV / combinatorics, tolerance-graded
+  12) Fermi / estimation guesstimate bank, graded by order of magnitude
+     -----------------------------
+  13) Progress report    trends, expected score, worst number patterns
+  14) Settings
    0) Quit
 """
 
@@ -57,8 +64,10 @@ ACTIONS = {
     "8": mode_typing_floor,
     "9": mode_weak_review,
     "10": mode_targeted,
-    "11": mode_progress,
-    "12": mode_settings,
+    "11": mode_quant_prob,
+    "12": mode_fermi,
+    "13": mode_progress,
+    "14": mode_settings,
 }
 
 _DIRECT = {
@@ -66,6 +75,8 @@ _DIRECT = {
     "--sprint": mode_sprint,
     "--targeted": mode_targeted,
     "--progress": mode_progress,
+    "--prob": mode_quant_prob,
+    "--fermi": mode_fermi,
 }
 
 
