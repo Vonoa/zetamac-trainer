@@ -31,8 +31,10 @@ input (total time only).
 | 8 | Typing floor | Pure numpad speed, no maths -> your raw entry-time floor |
 | 9 | Weak-spot review | **Spaced repetition** over combos you miss/stall on; retires ones you've fixed |
 | 10 | Targeted practice | Reads your `stats.json`, ranks your weakest **number patterns**, and generates problems in exactly those patterns |
-| 11 | Progress report | Trends, expected score, lifetime worst number patterns |
-| 12 | Settings | Duration, ranges, drill sizes, live pace target |
+| 11 | Probability & EV | Quant-interview drill: dice / cards / EV / combinatorics, answer as decimal, fraction or percent, tolerance-graded |
+| 12 | Fermi / estimation | Guesstimate bank (market sizing, unit conversions, etc.), graded by order of magnitude |
+| 13 | Progress report | Trends, expected score, lifetime worst number patterns |
+| 14 | Settings | Duration, ranges, drill sizes, live pace target |
 
 ### Targeted practice (mode 10)
 
